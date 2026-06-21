@@ -81,7 +81,7 @@
  
  //------------------------------------------------------------------------------------
  //		Main function.
-@@ -160,11 +220,16 @@
+@@ -165,11 +225,16 @@
  }
  
  void InitSDL() {
@@ -99,7 +99,7 @@
  
      // TODO: figure out some universal set of settings that work...
      SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-@@ -194,8 +259,11 @@
+@@ -199,8 +264,11 @@
      char window_title[128];
      sprintf(window_title, "System Shock - %s", SHOCKOLATE_VERSION);
  
@@ -113,7 +113,7 @@
  
      // Create the palette
  
-@@ -214,8 +282,29 @@
+@@ -219,8 +287,29 @@
  
      SDL_RaiseWindow(window);
  
@@ -145,3 +145,4 @@
  
      // Startup OpenGL
  
+
