@@ -17,7 +17,7 @@
  extern grs_screen *svga_screen;
  extern frc *svga_render_context;
  
-@@ -76,6 +79,63 @@
+@@ -76,6 +79,44 @@
  extern void CreateDefaultKeybindsFile(void);
  extern void LoadHotkeyKeybinds(void);
  extern void LoadMoveKeybinds(void);
@@ -34,23 +34,7 @@
 +    return driver;
 +}
 +
-+static bool SDLRenderDriverNeedsOpenGLWindow(const char *driver) {
-+    if (driver == NULL)
-+        return true;
-+
-+    return SDL_strcasecmp(driver, "software") != 0;
-+}
-+
-+static SDL_Window *CreateShockWindow(const char *title, bool opengl_window) {
-+    Uint32 flags = SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-+
-+    if (opengl_window)
-+        flags |= SDL_WINDOW_OPENGL;
-+
-+    return SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, grd_cap->w, grd_cap->h, flags);
-+}
-+
-+static SDL_Renderer *CreateShockRenderer(SDL_Window *target_window, const char *driver, bool allow_software_fallback) {
++static SDL_Renderer *CreateShockRenderer(SDL_Window *target_window, const char *driver) {
 +    SDL_Renderer *new_renderer;
 +
 +    if (driver != NULL && driver[0] != '\0')
@@ -68,9 +52,6 @@
 +
 +    WARN("SDL_CreateRenderer failed for driver '%s': %s", driver, SDL_GetError());
 +
-+    if (!allow_software_fallback)
-+        return NULL;
-+
 +    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 +    new_renderer = SDL_CreateRenderer(target_window, -1, 0);
 +    if (new_renderer == NULL)
@@ -81,7 +62,7 @@
  
  //------------------------------------------------------------------------------------
  //		Main function.
-@@ -165,11 +225,16 @@
+@@ -165,8 +206,10 @@
  }
  
  void InitSDL() {
@@ -93,43 +74,27 @@
      if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO) < 0) {
          DEBUG("%s: Init failed", __FUNCTION__);
      }
-+
-+    INFO("SDL video driver: %s", SDL_GetCurrentVideoDriver());
-+    INFO("Requested SDL render driver: %s", gRequestedSDLRenderDriver);
+@@ -201,6 +244,13 @@
  
-     // TODO: figure out some universal set of settings that work...
-     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-@@ -199,8 +264,11 @@
-     char window_title[128];
-     sprintf(window_title, "System Shock - %s", SHOCKOLATE_VERSION);
- 
--    window = SDL_CreateWindow(window_title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, grd_cap->w, grd_cap->h,
--                              SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL);
-+    window = CreateShockWindow(window_title, SDLRenderDriverNeedsOpenGLWindow(gRequestedSDLRenderDriver));
+     window = SDL_CreateWindow(window_title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, grd_cap->w, grd_cap->h,
+                               SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL);
 +    if (window == NULL) {
 +        ERROR("SDL_CreateWindow failed: %s", SDL_GetError());
 +        exit(1);
 +    }
++
++    INFO("SDL video driver: %s", SDL_GetCurrentVideoDriver());
++    INFO("Requested SDL render driver: %s", gRequestedSDLRenderDriver);
  
      // Create the palette
  
-@@ -219,8 +287,29 @@
+@@ -219,8 +269,19 @@
  
      SDL_RaiseWindow(window);
  
 -    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 -    SDL_RenderSetLogicalSize(renderer, grd_cap->w, grd_cap->h);
-+    renderer = CreateShockRenderer(window, gRequestedSDLRenderDriver, true);
-+    if (renderer == NULL && SDLRenderDriverNeedsOpenGLWindow(gRequestedSDLRenderDriver)) {
-+        WARN("Retrying SDL window without SDL_WINDOW_OPENGL using software renderer");
-+        SDL_DestroyWindow(window);
-+        window = CreateShockWindow(window_title, false);
-+        if (window == NULL) {
-+            ERROR("SDL_CreateWindow failed for software fallback: %s", SDL_GetError());
-+            exit(1);
-+        }
-+        renderer = CreateShockRenderer(window, "software", false);
-+    }
++    renderer = CreateShockRenderer(window, gRequestedSDLRenderDriver);
 +
 +    if (renderer == NULL) {
 +        ERROR("SDL_CreateRenderer failed: %s", SDL_GetError());
