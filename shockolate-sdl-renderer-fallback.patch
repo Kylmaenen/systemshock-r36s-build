@@ -1,0 +1,147 @@
+--- a/src/MacSrc/Shock.c
++++ b/src/MacSrc/Shock.c
+@@ -28,6 +28,7 @@
+ //  Includes
+ //--------------------
+ #include <math.h>
++#include <stdlib.h>
+ #include <SDL.h>
+ 
+ #include "InitMac.h"
+@@ -61,6 +62,8 @@
+ int num_args;
+ char **arg_values;
+ 
++static const char *gRequestedSDLRenderDriver = "opengl";
++
+ extern grs_screen *svga_screen;
+ extern frc *svga_render_context;
+ 
+@@ -76,6 +79,63 @@
+ extern void CreateDefaultKeybindsFile(void);
+ extern void LoadHotkeyKeybinds(void);
+ extern void LoadMoveKeybinds(void);
++
++static const char *GetSDLRenderDriverSetting(void) {
++    const char *driver = SDL_getenv("SHOCKOLATE_RENDER_DRIVER");
++
++    if (driver == NULL || driver[0] == '\0')
++        driver = SDL_getenv("SDL_RENDER_DRIVER");
++
++    if (driver == NULL || driver[0] == '\0')
++        driver = "opengl";
++
++    return driver;
++}
++
++static bool SDLRenderDriverNeedsOpenGLWindow(const char *driver) {
++    if (driver == NULL)
++        return true;
++
++    return SDL_strcasecmp(driver, "software") != 0;
++}
++
++static SDL_Window *CreateShockWindow(const char *title, bool opengl_window) {
++    Uint32 flags = SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
++
++    if (opengl_window)
++        flags |= SDL_WINDOW_OPENGL;
++
++    return SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, grd_cap->w, grd_cap->h, flags);
++}
++
++static SDL_Renderer *CreateShockRenderer(SDL_Window *target_window, const char *driver, bool allow_software_fallback) {
++    SDL_Renderer *new_renderer;
++
++    if (driver != NULL && driver[0] != '\0')
++        SDL_SetHint(SDL_HINT_RENDER_DRIVER, driver);
++
++    new_renderer = SDL_CreateRenderer(target_window, -1, SDL_RENDERER_PRESENTVSYNC);
++    if (new_renderer != NULL)
++        return new_renderer;
++
++    WARN("SDL_CreateRenderer failed for driver '%s' with vsync: %s", driver, SDL_GetError());
++
++    new_renderer = SDL_CreateRenderer(target_window, -1, 0);
++    if (new_renderer != NULL)
++        return new_renderer;
++
++    WARN("SDL_CreateRenderer failed for driver '%s': %s", driver, SDL_GetError());
++
++    if (!allow_software_fallback)
++        return NULL;
++
++    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
++    new_renderer = SDL_CreateRenderer(target_window, -1, 0);
++    if (new_renderer == NULL)
++        WARN("SDL_CreateRenderer failed for fallback driver 'software': %s", SDL_GetError());
++
++    return new_renderer;
++}
+ 
+ //------------------------------------------------------------------------------------
+ //		Main function.
+@@ -160,11 +220,16 @@
+ }
+ 
+ void InitSDL() {
++    gRequestedSDLRenderDriver = GetSDLRenderDriverSetting();
++
+     SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
+-    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
++    SDL_SetHint(SDL_HINT_RENDER_DRIVER, gRequestedSDLRenderDriver);
+     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO) < 0) {
+         DEBUG("%s: Init failed", __FUNCTION__);
+     }
++
++    INFO("SDL video driver: %s", SDL_GetCurrentVideoDriver());
++    INFO("Requested SDL render driver: %s", gRequestedSDLRenderDriver);
+ 
+     // TODO: figure out some universal set of settings that work...
+     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+@@ -194,8 +259,11 @@
+     char window_title[128];
+     sprintf(window_title, "System Shock - %s", SHOCKOLATE_VERSION);
+ 
+-    window = SDL_CreateWindow(window_title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, grd_cap->w, grd_cap->h,
+-                              SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL);
++    window = CreateShockWindow(window_title, SDLRenderDriverNeedsOpenGLWindow(gRequestedSDLRenderDriver));
++    if (window == NULL) {
++        ERROR("SDL_CreateWindow failed: %s", SDL_GetError());
++        exit(1);
++    }
+ 
+     // Create the palette
+ 
+@@ -214,8 +282,29 @@
+ 
+     SDL_RaiseWindow(window);
+ 
+-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+-    SDL_RenderSetLogicalSize(renderer, grd_cap->w, grd_cap->h);
++    renderer = CreateShockRenderer(window, gRequestedSDLRenderDriver, true);
++    if (renderer == NULL && SDLRenderDriverNeedsOpenGLWindow(gRequestedSDLRenderDriver)) {
++        WARN("Retrying SDL window without SDL_WINDOW_OPENGL using software renderer");
++        SDL_DestroyWindow(window);
++        window = CreateShockWindow(window_title, false);
++        if (window == NULL) {
++            ERROR("SDL_CreateWindow failed for software fallback: %s", SDL_GetError());
++            exit(1);
++        }
++        renderer = CreateShockRenderer(window, "software", false);
++    }
++
++    if (renderer == NULL) {
++        ERROR("SDL_CreateRenderer failed: %s", SDL_GetError());
++        exit(1);
++    }
++
++    SDL_RendererInfo renderer_info;
++    if (SDL_GetRendererInfo(renderer, &renderer_info) == 0)
++        INFO("SDL renderer: %s", renderer_info.name);
++
++    if (SDL_RenderSetLogicalSize(renderer, grd_cap->w, grd_cap->h) < 0)
++        WARN("SDL_RenderSetLogicalSize failed: %s", SDL_GetError());
+ 
+     // Startup OpenGL
+ 
