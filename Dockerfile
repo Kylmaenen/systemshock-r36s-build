@@ -24,13 +24,8 @@ COPY shockolate-sdl-renderer-fallback.patch /tmp/shockolate-sdl-renderer-fallbac
 RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply /tmp/shockolate-sdl-renderer-fallback.patch
 
-RUN cmake -S . -B build \
-        -DENABLE_OPENGL=OFF \
-        -DENABLE_SDL2=ON \
-        -DENABLE_SOUND=ON \
-        -DENABLE_FLUIDSYNTH=OFF \
-    && cmake --build build --parallel 2
+RUN cmake . && make -j4
 
 FROM scratch AS export
-COPY --from=build /root/systemshock/build/systemshock /sshock.aarch64
+COPY --from=build /root/systemshock/systemshock /sshock.aarch64
 
