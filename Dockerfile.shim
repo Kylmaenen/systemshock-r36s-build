@@ -1,0 +1,18 @@
+FROM --platform=linux/arm64 ubuntu:19.10 AS build
+
+ENV DEBIAN_FRONTEND=noninteractive
+COPY sources.list /etc/apt/sources.list
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential libsdl2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY sdlshim.c /src/sdlshim.c
+RUN gcc -shared -fPIC -O2 -Wall -Wextra \
+    $(sdl2-config --cflags) /src/sdlshim.c \
+    -o /libshock-sdlshim.aarch64.so -ldl
+
+FROM scratch AS export
+COPY --from=build /libshock-sdlshim.aarch64.so /libshock-sdlshim.aarch64.so
+
+
