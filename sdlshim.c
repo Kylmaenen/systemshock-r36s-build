@@ -55,6 +55,26 @@ SDL_bool SDL_SetHint(const char *name, const char *value) {
     return real_set_hint != NULL ? real_set_hint(name, effective_value) : SDL_FALSE;
 }
 
+int SDL_GL_SetAttribute(SDL_GLattr attr, int value) {
+    typedef int (*set_attribute_fn)(SDL_GLattr, int);
+    static set_attribute_fn real_set_attribute;
+    int effective_value = value;
+
+    if (real_set_attribute == NULL)
+        real_set_attribute = (set_attribute_fn)next_symbol("SDL_GL_SetAttribute");
+
+    if (attr == SDL_GL_CONTEXT_PROFILE_MASK &&
+        getenv("SHOCK_SDL_FORCE_GLES") != NULL) {
+        effective_value = SDL_GL_CONTEXT_PROFILE_ES;
+        fprintf(stderr, "SDL_SHIM: SDL_GL_CONTEXT_PROFILE_MASK %d -> ES (%d)\n",
+                value, effective_value);
+    }
+
+    return real_set_attribute != NULL
+               ? real_set_attribute(attr, effective_value)
+               : -1;
+}
+
 SDL_Window *SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags) {
     typedef SDL_Window *(*create_window_fn)(const char *, int, int, int, int, Uint32);
     static create_window_fn real_create_window;
@@ -105,7 +125,7 @@ int SDL_RenderCopy(SDL_Renderer *renderer, SDL_Texture *texture,
 
     result = real_render_copy != NULL ? real_render_copy(renderer, texture, srcrect, dstrect) : -1;
     render_copy_calls++;
-    if (render_copy_calls <= 5 || render_copy_calls % 600 == 0)
+    if (render_copy_calls <= 5 || render_copy_calls % 6000 == 0)
         fprintf(stderr, "SDL_SHIM: SDL_RenderCopy #%lu -> %d (%s)\n",
                 render_copy_calls, result, result == 0 ? "ok" : sdl_error());
     return result;
@@ -119,7 +139,7 @@ void SDL_RenderPresent(SDL_Renderer *renderer) {
         real_render_present = (render_present_fn)next_symbol("SDL_RenderPresent");
 
     render_present_calls++;
-    if (render_present_calls <= 5 || render_present_calls % 600 == 0)
+    if (render_present_calls <= 5 || render_present_calls % 6000 == 0)
         fprintf(stderr, "SDL_SHIM: SDL_RenderPresent #%lu\n", render_present_calls);
 
     if (real_render_present != NULL)
