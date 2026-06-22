@@ -30,8 +30,8 @@ __attribute__((constructor)) static void shim_loaded(void) {
     fprintf(stderr, "SDL_SHIM: loaded\n");
 }
 
-int SDL_SetHint(const char *name, const char *value) {
-    typedef int (*set_hint_fn)(const char *, const char *);
+SDL_bool SDL_SetHint(const char *name, const char *value) {
+    typedef SDL_bool (*set_hint_fn)(const char *, const char *);
     static set_hint_fn real_set_hint;
     const char *effective_value = value;
 
@@ -121,5 +121,4 @@ void SDL_RenderPresent(SDL_Renderer *renderer) {
     if (real_render_present != NULL)
         real_render_present(renderer);
 }
-
 
