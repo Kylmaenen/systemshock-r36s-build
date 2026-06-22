@@ -34,12 +34,16 @@ jobs:
       - name: Inspect shim
         run: |
           file out/libshock-sdlshim.aarch64.so
+          file out/libs.aarch64/libSDL2-2.0.so.0
+          file out/libs.aarch64/libSDL2_mixer-2.0.so.0
           sha256sum out/libshock-sdlshim.aarch64.so | tee out/libshock-sdlshim.aarch64.so.sha256
+          sha256sum out/libs.aarch64/libSDL2-2.0.so.0 out/libs.aarch64/libSDL2_mixer-2.0.so.0 +            | tee out/libs.aarch64/SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
           name: shock-sdlshim-aarch64
           path: |
             out/libshock-sdlshim.aarch64.so
             out/libshock-sdlshim.aarch64.so.sha256
+            out/libs.aarch64/
           if-no-files-found: error
 
