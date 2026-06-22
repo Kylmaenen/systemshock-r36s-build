@@ -30,6 +30,10 @@ __attribute__((constructor)) static void shim_loaded(void) {
     fprintf(stderr, "SDL_SHIM: loaded\n");
 }
 
+char *SDL_strtokr(char *string, const char *delimiters, char **saveptr) {
+    return strtok_r(string, delimiters, saveptr);
+}
+
 SDL_bool SDL_SetHint(const char *name, const char *value) {
     typedef SDL_bool (*set_hint_fn)(const char *, const char *);
     static set_hint_fn real_set_hint;
@@ -101,7 +105,7 @@ int SDL_RenderCopy(SDL_Renderer *renderer, SDL_Texture *texture,
 
     result = real_render_copy != NULL ? real_render_copy(renderer, texture, srcrect, dstrect) : -1;
     render_copy_calls++;
-    if (render_copy_calls <= 5 || result < 0)
+    if (render_copy_calls <= 5 || render_copy_calls % 600 == 0)
         fprintf(stderr, "SDL_SHIM: SDL_RenderCopy #%lu -> %d (%s)\n",
                 render_copy_calls, result, result == 0 ? "ok" : sdl_error());
     return result;
