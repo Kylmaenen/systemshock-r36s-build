@@ -1,0 +1,45 @@
+name: Build SDL diagnostic shim aarch64
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-sdl-shim.yml"
+      - "Dockerfile.shim"
+      - "sdlshim.c"
+      - "sources.list"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ARM64 shim
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.shim
+          platforms: linux/arm64
+          outputs: type=local,dest=out
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Inspect shim
+        run: |
+          file out/libshock-sdlshim.aarch64.so
+          sha256sum out/libshock-sdlshim.aarch64.so | tee out/libshock-sdlshim.aarch64.so.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shock-sdlshim-aarch64
+          path: |
+            out/libshock-sdlshim.aarch64.so
+            out/libshock-sdlshim.aarch64.so.sha256
+          if-no-files-found: error
+
