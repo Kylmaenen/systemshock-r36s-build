@@ -4,15 +4,19 @@ ENV DEBIAN_FRONTEND=noninteractive
 COPY sources.list /etc/apt/sources.list
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libsdl2-dev \
+    && apt-get install -y --no-install-recommends \
+        build-essential libsdl2-dev libsdl2-mixer-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY sdlshim.c /src/sdlshim.c
 RUN gcc -shared -fPIC -O2 -Wall -Wextra \
     $(sdl2-config --cflags) /src/sdlshim.c \
     -o /libshock-sdlshim.aarch64.so -ldl
+RUN mkdir -p /bundle \
+    && cp -L /usr/lib/aarch64-linux-gnu/libSDL2-2.0.so.0 /bundle/libSDL2-2.0.so.0 \
+    && cp -L /usr/lib/aarch64-linux-gnu/libSDL2_mixer-2.0.so.0 /bundle/libSDL2_mixer-2.0.so.0
 
 FROM scratch AS export
 COPY --from=build /libshock-sdlshim.aarch64.so /libshock-sdlshim.aarch64.so
-
+COPY --from=build /bundle/ /libs.aarch64/
 
