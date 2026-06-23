@@ -1,0 +1,17 @@
+FROM --platform=linux/arm64 ubuntu:19.10 AS build
+
+ENV DEBIAN_FRONTEND=noninteractive
+COPY sources.list /etc/apt/sources.list
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential libsdl2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY sdlprobe.c /src/sdlprobe.c
+RUN gcc -O2 -Wall -Wextra \
+    $(sdl2-config --cflags) /src/sdlprobe.c \
+    -o /sdlprobe.aarch64 $(sdl2-config --libs)
+
+FROM scratch AS export
+COPY --from=build /sdlprobe.aarch64 /sdlprobe.aarch64
