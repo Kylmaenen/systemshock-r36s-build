@@ -8,6 +8,7 @@
 
 static unsigned long render_copy_calls;
 static unsigned long render_present_calls;
+static unsigned long open_audio_device_calls;
 
 static void *next_symbol(const char *name) {
     void *symbol = dlsym(RTLD_NEXT, name);
@@ -24,6 +25,17 @@ static const char *sdl_error(void) {
         real_get_error = (get_error_fn)next_symbol("SDL_GetError");
 
     return real_get_error != NULL ? real_get_error() : "<SDL_GetError unavailable>";
+}
+
+static void set_sdl_error(const char *message) {
+    typedef int (*set_error_fn)(const char *, ...);
+    static set_error_fn real_set_error;
+
+    if (real_set_error == NULL)
+        real_set_error = (set_error_fn)next_symbol("SDL_SetError");
+
+    if (real_set_error != NULL)
+        real_set_error("%s", message);
 }
 
 __attribute__((constructor)) static void shim_loaded(void) {
@@ -73,6 +85,38 @@ int SDL_GL_SetAttribute(SDL_GLattr attr, int value) {
     return real_set_attribute != NULL
                ? real_set_attribute(attr, effective_value)
                : -1;
+}
+
+SDL_AudioDeviceID SDL_OpenAudioDevice(const char *device, int iscapture,
+                                      const SDL_AudioSpec *desired,
+                                      SDL_AudioSpec *obtained,
+                                      int allowed_changes) {
+    typedef SDL_AudioDeviceID (*open_audio_device_fn)(const char *, int, const SDL_AudioSpec *, SDL_AudioSpec *, int);
+    static open_audio_device_fn real_open_audio_device;
+    SDL_AudioDeviceID result;
+
+    if (real_open_audio_device == NULL)
+        real_open_audio_device = (open_audio_device_fn)next_symbol("SDL_OpenAudioDevice");
+
+    open_audio_device_calls++;
+    if (open_audio_device_calls == 1 && getenv("SHOCK_SDL_SKIP_FIRST_AUDIO_DEVICE") != NULL) {
+        set_sdl_error("first SDL_OpenAudioDevice skipped so SDL_mixer can own audio");
+        fprintf(stderr, "SDL_SHIM: SDL_OpenAudioDevice #%lu skipped for SDL_mixer handoff\n",
+                open_audio_device_calls);
+        (void)device;
+        (void)iscapture;
+        (void)desired;
+        (void)obtained;
+        (void)allowed_changes;
+        return 0;
+    }
+
+    result = real_open_audio_device != NULL
+                 ? real_open_audio_device(device, iscapture, desired, obtained, allowed_changes)
+                 : 0;
+    fprintf(stderr, "SDL_SHIM: SDL_OpenAudioDevice #%lu -> %u (%s)\n",
+            open_audio_device_calls, result, result != 0 ? "ok" : sdl_error());
+    return result;
 }
 
 SDL_Window *SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags) {
@@ -145,4 +189,3 @@ void SDL_RenderPresent(SDL_Renderer *renderer) {
     if (real_render_present != NULL)
         real_render_present(renderer);
 }
-
