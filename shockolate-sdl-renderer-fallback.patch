@@ -134,7 +134,7 @@
  
  int snd_start_digital(void) {
  
-@@ -24,7 +43,7 @@ int snd_start_digital(void) {
+@@ -24,7 +43,7 @@
      spec.format = AUDIO_S16SYS;
      spec.channels = 2;
      spec.samples = 2048;
@@ -143,7 +143,7 @@
      spec.userdata = (void *)&cutscene_audiostream;
  
      extern SDL_AudioDeviceID device;
-@@ -41,14 +60,17 @@ int snd_start_digital(void) {
+@@ -43,12 +62,14 @@
  
      if (Mix_OpenAudio(48000, AUDIO_S16SYS, 2, 2048) < 0) {
          ERROR("%s: Couldn't open audio device", __FUNCTION__);
