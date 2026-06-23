@@ -1,0 +1,11 @@
+--- a/src/MusicSrc/MusicDevice.c
++++ b/src/MusicSrc/MusicDevice.c
+@@ -190,7 +190,7 @@ static int AdlMidiInit(MusicDevice *dev, const unsigned int outputIndex, unsigned samplerate)
+     if (!adev || adev->dev.isOpen) return 0;
+     struct ADL_MIDIPlayer *adl = adl_init(samplerate);
+ 
+-    adl_switchEmulator(adl, ADLMIDI_EMU_NUKED_174);
++    adl_switchEmulator(adl, ADLMIDI_EMU_DOSBOX);
+     adl_setNumChips(adl, 1);
+     adl_setVolumeRangeModel(adl, ADLMIDI_VolumeModel_AUTO);
+     adl_setRunAtPcmRate(adl, 1);
