@@ -1,0 +1,130 @@
+--- a/src/MacSrc/SDLSound.c
++++ b/src/MacSrc/SDLSound.c
+@@ -9,6 +9,7 @@
+ 
+ static Mix_Chunk *samples_by_channel[SND_MAX_SAMPLES];
+ static int mix_music_in_sdl_device = 0;
++static int shock_audio_rate = 22050;
+ static Uint32 fallback_sample_pos[SND_MAX_SAMPLES];
+ static int fallback_sample_loops[SND_MAX_SAMPLES];
+ 
+@@ -74,6 +75,10 @@ int snd_using_primary_audio_mix(void) {
+     return mix_music_in_sdl_device;
+ }
+ 
++int snd_output_rate(void) {
++    return shock_audio_rate;
++}
++
+ int snd_start_digital(void) {
+ 
+     // Startup the sound system
+@@ -81,7 +86,7 @@ int snd_start_digital(void) {
+     SDL_AudioSpec spec, obtained;
+-    spec.freq = 48000;
++    spec.freq = 22050;
+     spec.format = AUDIO_S16SYS;
+     spec.channels = 2;
+     spec.samples = 2048;
+@@ -94,6 +99,7 @@ int snd_start_digital(void) {
+     if (device == 0) {
+         ERROR("Could not open SDL audio: %s", SDL_GetError());
+     } else {
++        shock_audio_rate = obtained.freq;
+         INFO("Opened Music Stream, deviceID %d, freq %d, size %d, format %d, channels %d, samples %d", device,
+              obtained.freq, obtained.size, obtained.format, obtained.channels, obtained.samples);
+     }
+@@ -120,8 +126,10 @@ int snd_sample_play(int snd_ref, int len, uchar *smp, struct snd_digi_parms *dpr
+     // Play one of the VOC format sounds
+ 
+     Mix_Chunk *sample = Mix_LoadWAV_RW(SDL_RWFromConstMem(smp, len), 1);
+-    if (sample == NULL)
++    if (sample == NULL) {
++        INFO("%s: Failed to load sample ref=%d len=%d: %s", __FUNCTION__, snd_ref, len, Mix_GetError());
+         return ERR_NOEFFECT;
++    }
+ 
+     int loops = dprm->loops > 0 ? dprm->loops - 1 : -1;
+     if (mix_music_in_sdl_device) {
+@@ -129,6 +137,8 @@ int snd_sample_play(int snd_ref, int len, uchar *smp, struct snd_digi_parms *dpr
+         for (int channel = 0; channel < SND_MAX_SAMPLES; channel++) {
+             if (samples_by_channel[channel] == NULL) {
++                INFO("%s: Queue fallback sample ref=%d len=%d chunk=%u channel=%d loops=%d",
++                     __FUNCTION__, snd_ref, len, sample->alen, channel, loops);
+                 samples_by_channel[channel] = sample;
+                 digi_parms_by_channel[channel] = *dprm;
+                 fallback_sample_pos[channel] = 0;
+@@ -139,6 +149,7 @@ int snd_sample_play(int snd_ref, int len, uchar *smp, struct snd_digi_parms *dpr
+             }
+         }
+ 
++        INFO("%s: No fallback channel for sample ref=%d len=%d", __FUNCTION__, snd_ref, len);
+         Mix_FreeChunk(sample);
+         return ERR_NOEFFECT;
+     }
+@@ -146,7 +157,7 @@ int snd_sample_play(int snd_ref, int len, uchar *smp, struct snd_digi_parms *dpr
+     int channel = Mix_PlayChannel(-1, sample, loops);
+     if (channel < 0) {
+-        DEBUG("%s: Failed to play sample", __FUNCTION__);
++        INFO("%s: Failed to play sample ref=%d len=%d: %s", __FUNCTION__, snd_ref, len, Mix_GetError());
+         Mix_FreeChunk(sample);
+         return ERR_NOEFFECT;
+     }
+--- a/src/MacSrc/Xmi.c
++++ b/src/MacSrc/Xmi.c
+@@ -19,6 +19,8 @@ SDL_atomic_t ThreadCommand[NUM_THREADS];
+ MusicDevice *MusicDev;
+ static SDL_mutex *MyMutex;
+ 
++extern int snd_output_rate(void);
++
+ void MusicCallback(void *userdata, Uint8 *stream, int len) {
+     MusicDevice *dev;
+ 
+@@ -719,7 +721,7 @@ errtype InitDecXMI(void) {
+ 
+     // Start the Midi device
+     MusicDevice *musicdev = NULL;
+-    int musicrate = 48000;
++    int musicrate = snd_output_rate();
+ 
+     switch (gShockPrefs.soMidiBackend) {
+ #ifdef USE_FLUIDSYNTH_MIDI
+--- a/src/GameSrc/cutsloop.c
++++ b/src/GameSrc/cutsloop.c
+@@ -84,6 +84,7 @@ extern char GerSubtitle[256];
+ 
+ extern SDL_AudioDeviceID device;
+ extern int snd_using_primary_audio_mix(void);
++extern int snd_output_rate(void);
+ 
+ 
+ void AudioStreamCallback(void *userdata, unsigned char *stream, int len)
+@@ -331,7 +332,7 @@ uchar play_cutscene(int cutscene)
+ 
+     SDL_Delay(1);
+ 
+-    cutscene_audiostream = SDL_NewAudioStream(AUDIO_U8, 1, fix_int(amovie->a.sampleRate), AUDIO_S16SYS, 2, 48000);
++    cutscene_audiostream = SDL_NewAudioStream(AUDIO_U8, 1, fix_int(amovie->a.sampleRate), AUDIO_S16SYS, 2, snd_output_rate());
+ 
+     cutscene_audiobuffer_pos = cutscene_audiobuffer;
+     cutscene_audiobuffer_size = fix_int(amovie->a.sampleCount) * 2 * fix_int(amovie->a.sampleRate) / fix_int(amovie->a.frameRate);
+--- a/src/GameSrc/audiolog.c
++++ b/src/GameSrc/audiolog.c
+@@ -63,6 +63,7 @@ extern char which_lang;
+ 
+ extern SDL_AudioDeviceID device;
+ extern int snd_using_primary_audio_mix(void);
++extern int snd_output_rate(void);
+ 
+ errtype audiolog_init(void) { return OK; }
+ 
+@@ -119,7 +120,7 @@ errtype audiolog_play(int email_id) {
+ 
+     SDL_Delay(1);
+ 
+-    cutscene_audiostream = SDL_NewAudioStream(AUDIO_U8, 1, fix_int(palog->a.sampleRate), AUDIO_S16SYS, 2, 48000);
++    cutscene_audiostream = SDL_NewAudioStream(AUDIO_U8, 1, fix_int(palog->a.sampleRate), AUDIO_S16SYS, 2, snd_output_rate());
+ 
+     audiolog_audiobuffer_pos = audiolog_audiobuffer;
+     audiolog_audiobuffer_size = fix_int(palog->a.sampleCount) * 2 * fix_int(palog->a.sampleRate) / fix_int(palog->a.frameRate);
