@@ -1,0 +1,135 @@
+--- a/src/MacSrc/SDLSound.c
++++ b/src/MacSrc/SDLSound.c
+@@ -9,6 +9,8 @@
+ 
+ static Mix_Chunk *samples_by_channel[SND_MAX_SAMPLES];
+ static int mix_music_in_sdl_device = 0;
++static Uint32 fallback_sample_pos[SND_MAX_SAMPLES];
++static int fallback_sample_loops[SND_MAX_SAMPLES];
+ 
+ extern SDL_AudioStream *cutscene_audiostream;
+ extern struct MusicDevice *MusicDev;
+@@ -30,6 +32,40 @@
+             MusicCallback((void *)&MusicDev, music_stream, len);
+             SDL_MixAudioFormat(stream, music_stream, AUDIO_S16SYS, (Uint32)len, SDL_MIX_MAXVOLUME);
+             SDL_free(music_stream);
++        }
++    }
++
++    if (mix_music_in_sdl_device) {
++        for (int channel = 0; channel < SND_MAX_SAMPLES; channel++) {
++            Mix_Chunk *sample = samples_by_channel[channel];
++            Uint32 pos = fallback_sample_pos[channel];
++            Uint32 remaining;
++            Uint32 to_mix;
++
++            if (sample == NULL || pos >= sample->alen)
++                continue;
++
++            remaining = sample->alen - pos;
++            to_mix = remaining < (Uint32)len ? remaining : (Uint32)len;
++            SDL_MixAudioFormat(stream, sample->abuf + pos, AUDIO_S16SYS, to_mix, sample->volume);
++            pos += to_mix;
++
++            if (pos >= sample->alen) {
++                if (fallback_sample_loops[channel] == -1 ||
++                    fallback_sample_loops[channel] > 0) {
++                    if (fallback_sample_loops[channel] > 0)
++                        fallback_sample_loops[channel]--;
++                    pos = 0;
++                } else {
++                    Mix_FreeChunk(sample);
++                    samples_by_channel[channel] = NULL;
++                    fallback_sample_pos[channel] = 0;
++                    fallback_sample_loops[channel] = 0;
++                    continue;
++                }
++            }
++
++            fallback_sample_pos[channel] = pos;
+         }
+     }
+ }
+@@ -64,6 +100,7 @@
+         ERROR("%s: Couldn't open audio device", __FUNCTION__);
+         INFO("%s: Routing MIDI through the primary SDL audio device", __FUNCTION__);
+         mix_music_in_sdl_device = 1;
++        SDL_PauseAudioDevice(device, 0);
+     } else {
+         Mix_HookMusic(MusicCallback, (void *)&MusicDev);
+         Mix_VolumeMusic(MIX_MAX_VOLUME); // use max volume for music stream
+@@ -90,6 +127,22 @@
+     }
+ 
+     int loops = dprm->loops > 0 ? dprm->loops - 1 : -1;
++    if (mix_music_in_sdl_device) {
++        for (int channel = 0; channel < SND_MAX_SAMPLES; channel++) {
++            if (samples_by_channel[channel] == NULL) {
++                samples_by_channel[channel] = sample;
++                digi_parms_by_channel[channel] = *dprm;
++                fallback_sample_pos[channel] = 0;
++                fallback_sample_loops[channel] = loops;
++                snd_sample_reload_parms(&digi_parms_by_channel[channel]);
++                return channel;
++            }
++        }
++
++        Mix_FreeChunk(sample);
++        return ERR_NOEFFECT;
++    }
++
+     int channel = Mix_PlayChannel(-1, sample, loops);
+     if (channel < 0) {
+         DEBUG("%s: Failed to play sample", __FUNCTION__);
+@@ -108,14 +161,22 @@
+ }
+ 
+ void snd_end_sample(int hnd_id) {
+-    Mix_HaltChannel(hnd_id);
++    if (!mix_music_in_sdl_device)
++        Mix_HaltChannel(hnd_id);
+     if (samples_by_channel[hnd_id]) {
+         Mix_FreeChunk(samples_by_channel[hnd_id]);
+         samples_by_channel[hnd_id] = NULL;
+     }
+-}
+-
+-bool snd_sample_playing(int hnd_id) { return Mix_Playing(hnd_id); }
++    fallback_sample_pos[hnd_id] = 0;
++    fallback_sample_loops[hnd_id] = 0;
++}
++
++bool snd_sample_playing(int hnd_id) {
++    if (mix_music_in_sdl_device)
++        return samples_by_channel[hnd_id] != NULL;
++
++    return Mix_Playing(hnd_id);
++}
+ 
+ snd_digi_parms *snd_sample_parms(int hnd_id) { return &digi_parms_by_channel[hnd_id]; }
+ 
+@@ -136,15 +197,21 @@
+         return;
+     int channel = sdp - digi_parms_by_channel;
+ 
+-    if (!Mix_Playing(channel))
++    if (!mix_music_in_sdl_device && !Mix_Playing(channel))
+         return;
+ 
+     // sdp->vol ranges from 0..255
+-    Mix_Volume(channel, (sdp->vol * 128) / 100);
++    if (mix_music_in_sdl_device) {
++        if (samples_by_channel[channel] != NULL)
++            samples_by_channel[channel]->volume = (sdp->vol * 128) / 100;
++    } else {
++        Mix_Volume(channel, (sdp->vol * 128) / 100);
++    }
+ 
+     // sdp->pan ranges from 1 (left) to 127 (right)
+     uint8_t right = 2 * sdp->pan;
+-    Mix_SetPanning(channel, 254 - right, right);
++    if (!mix_music_in_sdl_device)
++        Mix_SetPanning(channel, 254 - right, right);
+ }
+ 
+ int is_playing = 0;
