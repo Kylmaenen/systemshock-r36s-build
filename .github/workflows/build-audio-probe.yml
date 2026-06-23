@@ -1,0 +1,44 @@
+name: Build SDL audio probe aarch64
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-audio-probe.yml"
+      - "Dockerfile.audioprobe"
+      - "audioprobe.c"
+      - "sources.list"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ARM64 SDL audio probe
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.audioprobe
+          platforms: linux/arm64
+          outputs: type=local,dest=out
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Inspect probe
+        run: |
+          file out/audioprobe.aarch64
+          sha256sum out/audioprobe.aarch64 | tee out/audioprobe.aarch64.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shock-audioprobe-aarch64
+          path: |
+            out/audioprobe.aarch64
+            out/audioprobe.aarch64.sha256
+          if-no-files-found: error
