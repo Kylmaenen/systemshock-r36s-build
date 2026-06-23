@@ -21,8 +21,11 @@ RUN git clone --depth 1 https://github.com/ricardo-ayres/systemshock.git
 
 WORKDIR /root/systemshock
 COPY shockolate-sdl-renderer-fallback.patch /tmp/shockolate-sdl-renderer-fallback.patch
+COPY shockolate-audio-fallback-v2.patch /tmp/shockolate-audio-fallback-v2.patch
 RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
-    && git apply /tmp/shockolate-sdl-renderer-fallback.patch
+    && git apply /tmp/shockolate-sdl-renderer-fallback.patch \
+    && git apply --check /tmp/shockolate-audio-fallback-v2.patch \
+    && git apply /tmp/shockolate-audio-fallback-v2.patch
 
 RUN cmake . && make -j4
 
