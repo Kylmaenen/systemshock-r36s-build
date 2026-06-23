@@ -1,0 +1,51 @@
+--- a/src/MacSrc/SDLSound.c
++++ b/src/MacSrc/SDLSound.c
+@@ -70,6 +70,10 @@
+     }
+ }
+ 
++int snd_using_primary_audio_mix(void) {
++    return mix_music_in_sdl_device;
++}
++
+ int snd_start_digital(void) {
+ 
+     // Startup the sound system
+--- a/src/GameSrc/cutsloop.c
++++ b/src/GameSrc/cutsloop.c
+@@ -84,6 +84,7 @@
+ extern char GerSubtitle[256];
+ 
+ extern SDL_AudioDeviceID device;
++extern int snd_using_primary_audio_mix(void);
+ 
+ 
+ void AudioStreamCallback(void *userdata, unsigned char *stream, int len)
+@@ -158,6 +159,8 @@
+ 
+     SDL_FreeAudioStream(cutscene_audiostream);
+     cutscene_audiostream = NULL;
++    if (snd_using_primary_audio_mix())
++      SDL_PauseAudioDevice(device, 0);
+ 
+     if (cutscene_audiobuffer)
+     {
+--- a/src/GameSrc/audiolog.c
++++ b/src/GameSrc/audiolog.c
+@@ -62,6 +62,7 @@
+ extern char which_lang;
+ 
+ extern SDL_AudioDeviceID device;
++extern int snd_using_primary_audio_mix(void);
+ 
+ errtype audiolog_init(void) { return OK; }
+ 
+@@ -155,6 +156,8 @@
+ 
+         SDL_FreeAudioStream(cutscene_audiostream);
+         cutscene_audiostream = NULL;
++        if (snd_using_primary_audio_mix())
++            SDL_PauseAudioDevice(device, 0);
+ 
+         if (audiolog_audiobuffer) {
+             free(audiolog_audiobuffer);
