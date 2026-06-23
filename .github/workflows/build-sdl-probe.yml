@@ -1,0 +1,44 @@
+name: Build SDL video probe aarch64
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-sdl-probe.yml"
+      - "Dockerfile.probe"
+      - "sdlprobe.c"
+      - "sources.list"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ARM64 SDL probe
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.probe
+          platforms: linux/arm64
+          outputs: type=local,dest=out
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Inspect probe
+        run: |
+          file out/sdlprobe.aarch64
+          sha256sum out/sdlprobe.aarch64 | tee out/sdlprobe.aarch64.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shock-sdlprobe-aarch64
+          path: |
+            out/sdlprobe.aarch64
+            out/sdlprobe.aarch64.sha256
+          if-no-files-found: error
