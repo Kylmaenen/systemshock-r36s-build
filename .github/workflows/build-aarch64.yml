@@ -7,7 +7,7 @@ on:
       - ".github/workflows/build-aarch64.yml"
       - "Dockerfile"
       - "sources.list"
-      - "shockolate-sdl-renderer-fallback.patch"
+      - "shockolate-*.patch"
 
 permissions:
   contents: read
