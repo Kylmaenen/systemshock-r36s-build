@@ -19,7 +19,7 @@
  int snd_start_digital(void) {
  
      // Startup the sound system
-@@ -81,7 +86,7 @@ int snd_start_digital(void) {
+@@ -81,5 +86,5 @@ int snd_start_digital(void) {
      SDL_AudioSpec spec, obtained;
 -    spec.freq = 48000;
 +    spec.freq = 22050;
@@ -46,7 +46,7 @@
  
      int loops = dprm->loops > 0 ? dprm->loops - 1 : -1;
      if (mix_music_in_sdl_device) {
-@@ -129,6 +137,8 @@ int snd_sample_play(int snd_ref, int len, uchar *smp, struct snd_digi_parms *dpr
+@@ -129,5 +137,7 @@ int snd_sample_play(int snd_ref, int len, uchar *smp, struct snd_digi_parms *dpr
          for (int channel = 0; channel < SND_MAX_SAMPLES; channel++) {
              if (samples_by_channel[channel] == NULL) {
 +                INFO("%s: Queue fallback sample ref=%d len=%d chunk=%u channel=%d loops=%d",
@@ -62,7 +62,7 @@
          Mix_FreeChunk(sample);
          return ERR_NOEFFECT;
      }
-@@ -146,7 +157,7 @@ int snd_sample_play(int snd_ref, int len, uchar *smp, struct snd_digi_parms *dpr
+@@ -146,6 +157,6 @@ int snd_sample_play(int snd_ref, int len, uchar *smp, struct snd_digi_parms *dpr
      int channel = Mix_PlayChannel(-1, sample, loops);
      if (channel < 0) {
 -        DEBUG("%s: Failed to play sample", __FUNCTION__);
