@@ -100,4 +100,64 @@
  
      // Startup OpenGL
  
-
+--- a/src/MacSrc/SDLSound.c
++++ b/src/MacSrc/SDLSound.c
+@@ -8,12 +8,31 @@
+ #include <SDL_mixer.h>
+ 
+ static Mix_Chunk *samples_by_channel[SND_MAX_SAMPLES];
++static int mix_music_in_sdl_device = 0;
+ 
+ extern SDL_AudioStream *cutscene_audiostream;
+ extern struct MusicDevice *MusicDev;
+ 
+ extern void AudioStreamCallback(void *userdata, unsigned char *stream, int len);
+ extern void MusicCallback(void *userdata, Uint8 *stream, int len);
++
++static void ShockAudioCallback(void *userdata, unsigned char *stream, int len) {
++    SDL_AudioStream *as = userdata != NULL ? *(SDL_AudioStream **)userdata : NULL;
++
++    SDL_memset(stream, 0, (size_t)len);
++
++    if (as != NULL && SDL_AudioStreamAvailable(as) > 0)
++        SDL_AudioStreamGet(as, stream, len);
++
++    if (mix_music_in_sdl_device && MusicDev != NULL && MusicDev->isOpen) {
++        Uint8 *music_stream = SDL_malloc((size_t)len);
++        if (music_stream != NULL) {
++            MusicCallback((void *)&MusicDev, music_stream, len);
++            SDL_MixAudioFormat(stream, music_stream, AUDIO_S16SYS, (Uint32)len, SDL_MIX_MAXVOLUME);
++            SDL_free(music_stream);
++        }
++    }
++}
+ 
+ int snd_start_digital(void) {
+ 
+@@ -24,7 +43,7 @@ int snd_start_digital(void) {
+     spec.format = AUDIO_S16SYS;
+     spec.channels = 2;
+     spec.samples = 2048;
+-    spec.callback = AudioStreamCallback;
++    spec.callback = ShockAudioCallback;
+     spec.userdata = (void *)&cutscene_audiostream;
+ 
+     extern SDL_AudioDeviceID device;
+@@ -41,14 +60,17 @@ int snd_start_digital(void) {
+ 
+     if (Mix_OpenAudio(48000, AUDIO_S16SYS, 2, 2048) < 0) {
+         ERROR("%s: Couldn't open audio device", __FUNCTION__);
++        INFO("%s: Routing MIDI through the primary SDL audio device", __FUNCTION__);
++        mix_music_in_sdl_device = 1;
++    } else {
++        Mix_HookMusic(MusicCallback, (void *)&MusicDev);
++        Mix_VolumeMusic(MIX_MAX_VOLUME); // use max volume for music stream
+     }
+ 
+     Mix_AllocateChannels(SND_MAX_SAMPLES);
+-
+-    Mix_HookMusic(MusicCallback, (void *)&MusicDev);
+-    Mix_VolumeMusic(MIX_MAX_VOLUME); // use max volume for music stream
+ 
+     InitReadXMI();
+ 
