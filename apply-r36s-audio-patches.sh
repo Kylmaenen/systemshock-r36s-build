@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+
+perl -0pi -e 's#static int mix_music_in_sdl_device = 0;\n#static int mix_music_in_sdl_device = 0;\nstatic int shock_audio_rate = 32000;\nstatic int shock_audio_chunk = 4096;\nstatic int ShockEnvInt(const char *name, int fallback, int minv, int maxv) {\n    const char *value = SDL_getenv(name);\n    int parsed;\n    if (value == NULL || value[0] == 0)\n        return fallback;\n    parsed = SDL_atoi(value);\n    if (parsed < minv || parsed > maxv)\n        return fallback;\n    return parsed;\n}\n#' src/MacSrc/SDLSound.c
+
+perl -0pi -e 's#int snd_using_primary_audio_mix\(void\) \{#static void ShockPostMix(void *userdata, unsigned char *stream, int len) {\n    SDL_AudioStream *as = userdata != NULL ? *(SDL_AudioStream **)userdata : NULL;\n\n    if (as != NULL && SDL_AudioStreamAvailable(as) > 0) {\n        Uint8 *mix_stream = SDL_malloc((size_t)len);\n        if (mix_stream != NULL) {\n            int got;\n            SDL_memset(mix_stream, 0, (size_t)len);\n            got = SDL_AudioStreamGet(as, mix_stream, len);\n            if (got > 0)\n                SDL_MixAudioFormat(stream, mix_stream, AUDIO_S16SYS, (Uint32)got, SDL_MIX_MAXVOLUME);\n            SDL_free(mix_stream);\n        }\n    }\n}\n\nint snd_using_primary_audio_mix(void) {#' src/MacSrc/SDLSound.c
+
+perl -0pi -e 's#int snd_start_digital\(void\) \{#int snd_output_rate(void) {\n    return shock_audio_rate;\n}\n\nint snd_start_digital(void) {#' src/MacSrc/SDLSound.c
+
+perl -0pi -e 's#    SDL_AudioSpec spec, obtained;\n    spec.freq = 48000;\n    spec.format = AUDIO_S16SYS;\n    spec.channels = 2;\n    spec.samples = 2048;\n    spec.callback = ShockAudioCallback;\n    spec.userdata = \(void \*\)&cutscene_audiostream;\n\n    extern SDL_AudioDeviceID device;\n    device = SDL_OpenAudioDevice\(NULL, 0, &spec, &obtained, 0\);\n\n    if \(device == 0\) \{\n        ERROR\("Could not open SDL audio: %s", SDL_GetError\(\)\);\n    \} else \{\n        INFO\("Opened Music Stream, deviceID %d, freq %d, size %d, format %d, channels %d, samples %d", device,\n             obtained.freq, obtained.size, obtained.format, obtained.channels, obtained.samples\);\n    \}\n#    extern SDL_AudioDeviceID device;\n    int mix_freq = 0, mix_channels = 0;\n    Uint16 mix_format = 0;\n\n    device = 0;\n#' src/MacSrc/SDLSound.c
+
+perl -0pi -e 's#    if \(Mix_OpenAudio\(48000, AUDIO_S16SYS, 2, 2048\) < 0\) \{\n        ERROR\("%s: Couldn.t open audio device", __FUNCTION__\);\n        INFO\("%s: Routing MIDI through the primary SDL audio device", __FUNCTION__\);\n        mix_music_in_sdl_device = 1;\n        SDL_PauseAudioDevice\(device, 0\);\n    \} else \{\n        Mix_HookMusic\(MusicCallback, \(void \*\)&MusicDev\);\n        Mix_VolumeMusic\(MIX_MAX_VOLUME\); // use max volume for music stream\n    \}#    shock_audio_rate = ShockEnvInt("SHOCK_AUDIO_RATE", 32000, 22050, 96000);\n    shock_audio_chunk = ShockEnvInt("SHOCK_AUDIO_CHUNK", 4096, 512, 16384);\n    INFO("Requested SDL_mixer audio, freq %d, chunk %d", shock_audio_rate, shock_audio_chunk);\n\n    if (Mix_OpenAudio(shock_audio_rate, AUDIO_S16SYS, 2, shock_audio_chunk) < 0) {\n        ERROR("%s: Couldn.t open SDL_mixer audio device: %s", __FUNCTION__, Mix_GetError());\n        return ERR_NOEFFECT;\n    } else {\n        Mix_QuerySpec(&mix_freq, &mix_format, &mix_channels);\n        if (mix_freq > 0)\n            shock_audio_rate = mix_freq;\n        INFO("Opened SDL_mixer audio, freq %d, format %d, channels %d, chunk %d", mix_freq, mix_format, mix_channels, shock_audio_chunk);\n        Mix_SetPostMix(ShockPostMix, (void *)&cutscene_audiostream);\n        Mix_HookMusic(MusicCallback, (void *)&MusicDev);\n        Mix_VolumeMusic(MIX_MAX_VOLUME); // use max volume for music stream\n    }#' src/MacSrc/SDLSound.c
+
+perl -0pi -e 's#static SDL_mutex \*MyMutex;\n#static SDL_mutex *MyMutex;\n\nextern int snd_output_rate(void);\n#' src/MacSrc/Xmi.c
+perl -0pi -e 's#int musicrate = 48000;#int musicrate = snd_output_rate();#' src/MacSrc/Xmi.c
+
+for file in src/GameSrc/cutsloop.c src/GameSrc/audiolog.c; do
+    perl -0pi -e 's#extern int snd_using_primary_audio_mix\(void\);\n#extern int snd_using_primary_audio_mix(void);\nextern int snd_output_rate(void);\n#' "$file"
+    perl -0pi -e 's#SDL_PauseAudioDevice\(device, ([01])\);#if (device != 0) SDL_PauseAudioDevice(device, $1);#g' "$file"
+    perl -0pi -e 's#fix_int\((a?movie|palog)->a.sampleRate\), AUDIO_S16SYS, 2, 48000\)#fix_int($1->a.sampleRate), AUDIO_S16SYS, 2, snd_output_rate())#' "$file"
+done
+
+perl -0pi -e 's#typedef struct AdlMidiDevice\n\{\n    MusicDevice dev;\n    struct ADL_MIDIPlayer \*adl;\n\} AdlMidiDevice;#typedef struct AdlMidiDevice\n{\n    MusicDevice dev;\n    struct ADL_MIDIPlayer *adl;\n    int modeInitialized;\n    MusicMode currentMode;\n} AdlMidiDevice;#' src/MusicSrc/MusicDevice.c
+
+perl -0pi -e 's#    //Use sound bank 45 for res/sound/sblaster, 0 for res/sound/genmidi\n    adl_setBank\(adev->adl, \(mode == Music_SoundBlaster\) \? 45 : 0\);#    if (adev->modeInitialized && adev->currentMode == mode)\n        return;\n\n    //Use sound bank 45 for res/sound/sblaster, 0 for res/sound/genmidi\n    adl_setBank(adev->adl, (mode == Music_SoundBlaster) ? 45 : 0);\n\n    adev->modeInitialized = 1;\n    adev->currentMode = mode;\n    adev->dev.musicType = (mode == Music_SoundBlaster) ? MUSICTYPE_SBLASTER : MUSICTYPE_GENMIDI;#' src/MusicSrc/MusicDevice.c
+
+perl -0pi -e 's#    adev->dev.musicType = MUSICTYPE_SBLASTER;\n    return &adev->dev;#    adev->dev.musicType = MUSICTYPE_SBLASTER;\n    adev->modeInitialized = 0;\n    adev->currentMode = Music_SoundBlaster;\n    return &adev->dev;#' src/MusicSrc/MusicDevice.c
+
+grep -R "ADLMIDI_EMU_DOSBOX\|modeInitialized\|Requested SDL_mixer audio\|Opened SDL_mixer audio\|Mix_SetPostMix\|snd_output_rate\|SDL_PauseAudioDevice" -n src/MusicSrc/MusicDevice.c src/MacSrc/SDLSound.c src/MacSrc/Xmi.c src/GameSrc/cutsloop.c src/GameSrc/audiolog.c
