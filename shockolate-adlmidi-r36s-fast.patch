@@ -1,0 +1,19 @@
+diff --git a/src/MusicSrc/MusicDevice.c b/src/MusicSrc/MusicDevice.c
+index 4f7a9c1..b8a60c3 100644
+--- a/src/MusicSrc/MusicDevice.c
++++ b/src/MusicSrc/MusicDevice.c
+@@ -190,11 +190,12 @@ static int AdlMidiInit(MusicDevice *dev, const unsigned int outputIndex, unsigne
+     if (!adev || adev->dev.isOpen) return 0;
+     struct ADL_MIDIPlayer *adl = adl_init(samplerate);
+ 
+-    adl_switchEmulator(adl, ADLMIDI_EMU_NUKED_174);
++    // RK3326 handhelds struggle with Nuked OPL at the game's music change points.
++    // DOSBox OPL is lighter and keeps the ADLMIDI/Sound Blaster music path intact.
++    adl_switchEmulator(adl, ADLMIDI_EMU_DOSBOX);
+     adl_setNumChips(adl, 1);
+     adl_setVolumeRangeModel(adl, ADLMIDI_VolumeModel_AUTO);
+-    adl_setRunAtPcmRate(adl, 1);
++    adl_setRunAtPcmRate(adl, 0);
+ 
+     adev->adl = adl;
+ 
