@@ -24,7 +24,6 @@ COPY shockolate-sdl-renderer-fallback.patch /tmp/shockolate-sdl-renderer-fallbac
 COPY shockolate-audio-fallback-v2.patch /tmp/shockolate-audio-fallback-v2.patch
 COPY shockolate-audio-resume-v3.patch /tmp/shockolate-audio-resume-v3.patch
 COPY shockolate-adlmidi-dosbox-v4.patch /tmp/shockolate-adlmidi-dosbox-v4.patch
-COPY shockolate-adlmidi-r36s-fast.patch /tmp/shockolate-adlmidi-r36s-fast.patch
 COPY apply-r36s-audio-patches.sh /tmp/apply-r36s-audio-patches.sh
 RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply /tmp/shockolate-sdl-renderer-fallback.patch \
@@ -34,8 +33,6 @@ RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply /tmp/shockolate-audio-resume-v3.patch \
     && git apply --check /tmp/shockolate-adlmidi-dosbox-v4.patch \
     && git apply /tmp/shockolate-adlmidi-dosbox-v4.patch \
-    && git apply --check /tmp/shockolate-adlmidi-r36s-fast.patch \
-    && git apply /tmp/shockolate-adlmidi-r36s-fast.patch \
     && sh /tmp/apply-r36s-audio-patches.sh
 
 RUN cmake . && make -j4
