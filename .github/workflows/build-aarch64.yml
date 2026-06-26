@@ -7,6 +7,7 @@ on:
       - ".github/workflows/build-aarch64.yml"
       - "Dockerfile"
       - "sources.list"
+      - "apply-r36s-audio-patches.sh"
       - "shockolate-*.patch"
 
 permissions:
@@ -51,4 +52,3 @@ jobs:
             out/sshock.aarch64
             out/sshock.aarch64.sha256
           if-no-files-found: error
-
