@@ -25,7 +25,8 @@ COPY shockolate-audio-fallback-v2.patch /tmp/shockolate-audio-fallback-v2.patch
 COPY shockolate-audio-resume-v3.patch /tmp/shockolate-audio-resume-v3.patch
 COPY shockolate-adlmidi-dosbox-v4.patch /tmp/shockolate-adlmidi-dosbox-v4.patch
 COPY apply-r36s-audio-patches.sh /tmp/apply-r36s-audio-patches.sh
-RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
+RUN sed -i "/MUSIC_RENDER_FRAMES/{s|s#static SDL_mutex|s@static SDL_mutex|; s|}\\\\n#' src/MacSrc/Xmi.c|}\\\\n@' src/MacSrc/Xmi.c|;}" /tmp/apply-r36s-audio-patches.sh \
+    && git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply --check /tmp/shockolate-audio-fallback-v2.patch \
     && git apply /tmp/shockolate-audio-fallback-v2.patch \
