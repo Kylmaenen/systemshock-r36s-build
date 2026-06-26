@@ -1,16 +1,14 @@
+diff --git a/src/MusicSrc/MusicDevice.c b/src/MusicSrc/MusicDevice.c
 --- a/src/MusicSrc/MusicDevice.c
 +++ b/src/MusicSrc/MusicDevice.c
-@@ -184,13 +184,17 @@ typedef struct AdlMidiDevice
+@@ -184,6 +184,8 @@ typedef struct AdlMidiDevice
  {
      MusicDevice dev;
      struct ADL_MIDIPlayer *adl;
 +    int modeInitialized;
 +    MusicMode currentMode;
  } AdlMidiDevice;
- 
- static int AdlMidiInit(MusicDevice *dev, const unsigned int outputIndex, unsigned samplerate)
- {
-     AdlMidiDevice *adev = (AdlMidiDevice *)dev;
+@@ -190,7 +192,7 @@ static int AdlMidiInit(MusicDevice *dev, const unsigned int outputIndex, unsigned samplerate)
      if (!adev || adev->dev.isOpen) return 0;
      struct ADL_MIDIPlayer *adl = adl_init(samplerate);
  
@@ -19,7 +17,7 @@
      adl_setNumChips(adl, 1);
      adl_setVolumeRangeModel(adl, ADLMIDI_VolumeModel_AUTO);
      adl_setRunAtPcmRate(adl, 1);
-@@ -219,8 +223,16 @@ static void AdlMidiSetupMode(MusicDevice *dev, MusicMode mode)
+@@ -219,8 +221,16 @@ static void AdlMidiSetupMode(MusicDevice *dev, MusicMode mode)
      AdlMidiDevice *adev = (AdlMidiDevice *)dev;
      if (!adev || !adev->dev.isOpen) return;
  
@@ -35,7 +33,7 @@
  }
  
  static void AdlMidiReset(MusicDevice *dev)
-@@ -346,6 +358,8 @@ static MusicDevice *createAdlMidiDevice()
+@@ -346,6 +356,8 @@ static MusicDevice *createAdlMidiDevice()
      adev->dev.outputIndex = 0;
      adev->dev.deviceType = Music_AdlMidi;
      adev->dev.musicType = MUSICTYPE_SBLASTER;
@@ -43,4 +41,3 @@
 +    adev->currentMode = Music_SoundBlaster;
      return &adev->dev;
  }
- 
