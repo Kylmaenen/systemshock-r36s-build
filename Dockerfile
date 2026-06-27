@@ -35,11 +35,7 @@ RUN sed -i "/MUSIC_RENDER_FRAMES/{s|#define MUSIC_RENDER_FRAMES 512|enum { MUSIC
     && git apply --check /tmp/shockolate-adlmidi-dosbox-v4.patch \
     && git apply /tmp/shockolate-adlmidi-dosbox-v4.patch \
     && sh /tmp/apply-r36s-audio-patches.sh \
-    && perl -0pi -e 's/static SDL_atomic_t MusicRenderRunning;\n/static SDL_atomic_t MusicRenderRunning;\nstatic int MusicRenderRate = 22050;\n/' src/MacSrc/Xmi.c \
-    && perl -0pi -e 's/rate = snd_output_rate\(\);/rate = MusicRenderRate;/' src/MacSrc/Xmi.c \
-    && perl -0pi -e 's/SDL_NewAudioStream\(AUDIO_S16SYS, 2, rate, AUDIO_S16SYS, 2, rate\)/SDL_NewAudioStream(AUDIO_S16SYS, 2, rate, AUDIO_S16SYS, 2, snd_output_rate())/' src/MacSrc/Xmi.c \
-    && perl -0pi -e 's/int musicrate = snd_output_rate\(\);/int musicrate = MusicRenderRate;/' src/MacSrc/Xmi.c \
-    && grep -n "MusicRenderRate\|SDL_NewAudioStream\|int musicrate" src/MacSrc/Xmi.c
+    && grep -n "SDL_NewAudioStream\\|int musicrate\\|snd_sample_preload" src/MacSrc/Xmi.c src/MacSrc/SDLSound.c
 
 RUN cmake . && make -j4
 
