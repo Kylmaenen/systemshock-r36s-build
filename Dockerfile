@@ -40,7 +40,9 @@ RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && sh /tmp/apply-r36s-audio-patches.sh \
     && grep -n "ADLMIDI_EMU_NUKED_174\\|int musicrate\\|Mix_SetPostMix" src/MusicSrc/MusicDevice.c src/MacSrc/Xmi.c src/MacSrc/SDLSound.c
 
-RUN cmake -DENABLE_FLUIDSYNTH=BUNDLED . && make -j4
+RUN sed -i 's|set(FLUIDSYNTH_LIBRARIES ${FLUIDSYNTH_LIBRARY})|set(FLUIDSYNTH_LIBRARIES "${FLUIDSYNTH_LIBRARY};pthread;dl")|' CMakeLists.txt \
+    && cmake -DENABLE_FLUIDSYNTH=BUNDLED . \
+    && make -j4
 
 FROM scratch AS export
 COPY --from=build /root/systemshock/systemshock /sshock.aarch64
