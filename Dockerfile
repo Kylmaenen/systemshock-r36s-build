@@ -25,7 +25,7 @@ COPY shockolate-audio-fallback-v2.patch /tmp/shockolate-audio-fallback-v2.patch
 COPY shockolate-audio-resume-v3.patch /tmp/shockolate-audio-resume-v3.patch
 COPY shockolate-adlmidi-dosbox-v4.patch /tmp/shockolate-adlmidi-dosbox-v4.patch
 COPY apply-r36s-audio-patches.sh /tmp/apply-r36s-audio-patches.sh
-RUN sed -i "/MUSIC_RENDER_FRAMES/{s|#define MUSIC_RENDER_FRAMES 512|enum { MUSIC_RENDER_FRAMES = 512 };|; s|#define MUSIC_FIFO_TARGET_BYTES 32768|enum { MUSIC_FIFO_TARGET_BYTES = 32768 };|;}" /tmp/apply-r36s-audio-patches.sh \
+RUN sed -i "/MUSIC_RENDER_FRAMES/{s|#define MUSIC_RENDER_FRAMES 256|enum { MUSIC_RENDER_FRAMES = 256 };|; s|#define MUSIC_FIFO_TARGET_BYTES 8192|enum { MUSIC_FIFO_TARGET_BYTES = 8192 };|;}" /tmp/apply-r36s-audio-patches.sh \
     && git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply --check /tmp/shockolate-audio-fallback-v2.patch \
