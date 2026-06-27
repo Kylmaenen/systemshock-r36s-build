@@ -24,7 +24,7 @@ RUN mkdir -p /root/systemshock/build_ext \
     && git clone --depth 1 https://github.com/EtherTyper/fluidsynth-lite.git \
     && cd fluidsynth-lite \
     && cmake . \
-    && cmake --build . -j4
+    && cmake --build . -- -j4
 
 WORKDIR /root/systemshock
 COPY shockolate-sdl-renderer-fallback.patch /tmp/shockolate-sdl-renderer-fallback.patch
