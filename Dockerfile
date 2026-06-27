@@ -38,6 +38,7 @@ COPY shockolate-sdl-renderer-fallback.patch /tmp/shockolate-sdl-renderer-fallbac
 COPY shockolate-audio-fallback-v2.patch /tmp/shockolate-audio-fallback-v2.patch
 COPY shockolate-audio-resume-v3.patch /tmp/shockolate-audio-resume-v3.patch
 COPY apply-r36s-audio-patches.sh /tmp/apply-r36s-audio-patches.sh
+COPY apply-r36s-stream-prebuffer.sh /tmp/apply-r36s-stream-prebuffer.sh
 RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply --check /tmp/shockolate-audio-fallback-v2.patch \
@@ -45,6 +46,7 @@ RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply --check /tmp/shockolate-audio-resume-v3.patch \
     && git apply /tmp/shockolate-audio-resume-v3.patch \
     && sh /tmp/apply-r36s-audio-patches.sh \
+    && sh /tmp/apply-r36s-stream-prebuffer.sh \
     && grep -n "ADLMIDI_EMU_NUKED_174\\|int musicrate\\|Mix_SetPostMix" src/MusicSrc/MusicDevice.c src/MacSrc/Xmi.c src/MacSrc/SDLSound.c
 
 # Replace the accumulated SDL sound shims with the R36S backend: FluidSynth
