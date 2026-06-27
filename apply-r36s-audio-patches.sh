@@ -28,7 +28,7 @@ done
 
 # SDL_mixer owns the callback thread. Serialize all cutscene/audio-log stream
 # access with that callback to avoid use-after-free at the end of a movie.
-perl -0pi -e 's#int snd_using_primary_audio_mix\(void\) \{#void snd_audio_lock(void) { Mix_LockAudio(); }\nvoid snd_audio_unlock(void) { Mix_UnlockAudio(); }\n\nint snd_using_primary_audio_mix(void) {#' src/MacSrc/SDLSound.c
+perl -0pi -e 's#int snd_using_primary_audio_mix\(void\) \{#void snd_audio_lock(void) { SDL_LockAudio(); }\nvoid snd_audio_unlock(void) { SDL_UnlockAudio(); }\n\nint snd_using_primary_audio_mix(void) {#' src/MacSrc/SDLSound.c
 
 for file in src/GameSrc/cutsloop.c src/GameSrc/audiolog.c; do
     perl -0pi -e 's#extern int snd_output_rate\(void\);#extern int snd_output_rate(void);\nextern void snd_audio_lock(void);\nextern void snd_audio_unlock(void);#' "$file"
