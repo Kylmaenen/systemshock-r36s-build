@@ -19,6 +19,13 @@ RUN apt-get update \
 WORKDIR /root
 RUN git clone --depth 1 https://github.com/ricardo-ayres/systemshock.git
 
+RUN mkdir -p /root/systemshock/build_ext \
+    && cd /root/systemshock/build_ext \
+    && git clone --depth 1 https://github.com/EtherTyper/fluidsynth-lite.git \
+    && cd fluidsynth-lite \
+    && cmake . \
+    && cmake --build . -j4
+
 WORKDIR /root/systemshock
 COPY shockolate-sdl-renderer-fallback.patch /tmp/shockolate-sdl-renderer-fallback.patch
 COPY shockolate-audio-fallback-v2.patch /tmp/shockolate-audio-fallback-v2.patch
@@ -33,7 +40,7 @@ RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && sh /tmp/apply-r36s-audio-patches.sh \
     && grep -n "ADLMIDI_EMU_NUKED_174\\|int musicrate\\|Mix_SetPostMix" src/MusicSrc/MusicDevice.c src/MacSrc/Xmi.c src/MacSrc/SDLSound.c
 
-RUN cmake . && make -j4
+RUN cmake -DENABLE_FLUIDSYNTH=BUNDLED . && make -j4
 
 FROM scratch AS export
 COPY --from=build /root/systemshock/systemshock /sshock.aarch64
