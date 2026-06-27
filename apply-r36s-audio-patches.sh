@@ -27,6 +27,12 @@ perl -0pi -e 's#        SDL_LockMutex\(MyMutex\);\n        MusicDev->destroy\(Mu
 perl -0pi -e 's#    InitDecXMI\(\);\n\n    MyMutex = SDL_CreateMutex\(\);#    MyMutex = SDL_CreateMutex();\n\n    InitDecXMI();#' src/MacSrc/Xmi.c
 perl -0pi -e 's#    INFO\("Closing MIDI driver due to shutdown"\);#    StopMusicRenderThread();\n\n    INFO("Closing MIDI driver due to shutdown");#' src/MacSrc/Xmi.c
 
+if ! grep -q '^int snd_sample_preload' src/MacSrc/SDLSound.c; then
+    perl -0pi -e 's#int snd_sample_play\(int snd_ref, int len, uchar \*smp, struct snd_digi_parms \*dprm\) \{#int snd_sample_preload(int snd_ref, int len, uchar *smp) {\n    return ShockGetCachedSample(snd_ref, len, smp) != NULL ? OK : ERR_NOEFFECT;\n}\n\nint snd_sample_play(int snd_ref, int len, uchar *smp, struct snd_digi_parms *dprm) {#' src/MacSrc/SDLSound.c
+fi
+
+grep -q '^int snd_sample_preload' src/MacSrc/SDLSound.c
+
 perl -0pi -e 's#int   snd_sample_play\(int snd_ref, int len, uchar \*smp, struct snd_digi_parms \*dprm\);#int   snd_sample_preload(int snd_ref, int len, uchar *smp);\nint   snd_sample_play(int snd_ref, int len, uchar *smp, struct snd_digi_parms *dprm);#' src/Libraries/SND/Source/lgsndx.h
 
 perl -0pi -e 's#    fclose\(fp\);\n    // clear_digi_fx\(\);#    fclose(fp);\n\n    // Decode every gameplay VOC while the startup screen is still visible.\n    // DIGIFX.RES contains 114 effects, which fit in the fixed 128-entry cache.\n    for (int i = 0; i < NUM_DIGI_FX; ++i) {\n        Id vocRes = SFX_BASE + i;\n        uchar *addr = (uchar *)ResLock(vocRes);\n        int len = ResSize(vocRes);\n\n        if (addr != NULL && len > 0)\n            snd_sample_preload(vocRes, len, addr);\n        if (addr != NULL)\n            ResUnlock(vocRes);\n    }\n    // clear_digi_fx();#' src/GameSrc/digifx.c
