@@ -14,17 +14,24 @@ RUN apt-get update \
         libsdl2-image-dev \
         libsdl2-mixer-dev \
         pkg-config \
+        wget \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root
 RUN git clone --depth 1 https://github.com/ricardo-ayres/systemshock.git
 
-RUN mkdir -p /root/systemshock/build_ext \
-    && cd /root/systemshock/build_ext \
-    && git clone --depth 1 https://github.com/EtherTyper/fluidsynth-lite.git \
-    && cd fluidsynth-lite \
-    && cmake . \
-    && cmake --build . -- -j4
+# Build against the same full FluidSynth ABI provided by dArkOSRE. The shared
+# library is used only for linking; the exported game resolves libfluidsynth.so.3
+# from the console at runtime.
+RUN mkdir -p /opt/fluidsynth-sysroot \
+    && wget -q https://deb.debian.org/debian/pool/main/f/fluidsynth/libfluidsynth3_2.4.4+dfsg-1+deb13u2_arm64.deb -O /tmp/libfluidsynth3.deb \
+    && wget -q https://deb.debian.org/debian/pool/main/f/fluidsynth/libfluidsynth-dev_2.4.4+dfsg-1+deb13u2_arm64.deb -O /tmp/libfluidsynth-dev.deb \
+    && dpkg-deb -x /tmp/libfluidsynth3.deb /opt/fluidsynth-sysroot \
+    && dpkg-deb -x /tmp/libfluidsynth-dev.deb /opt/fluidsynth-sysroot \
+    && mkdir -p /root/systemshock/build_ext/fluidsynth-lite/src \
+    && ln -s /opt/fluidsynth-sysroot/usr/include /root/systemshock/build_ext/fluidsynth-lite/include \
+    && ln -s /opt/fluidsynth-sysroot/usr/lib/aarch64-linux-gnu/libfluidsynth.so /root/systemshock/build_ext/fluidsynth-lite/src/libfluidsynth.so \
+    && readelf -d /opt/fluidsynth-sysroot/usr/lib/aarch64-linux-gnu/libfluidsynth.so.3.3.4 | grep 'SONAME.*libfluidsynth.so.3'
 
 WORKDIR /root/systemshock
 COPY shockolate-sdl-renderer-fallback.patch /tmp/shockolate-sdl-renderer-fallback.patch
@@ -40,9 +47,12 @@ RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && sh /tmp/apply-r36s-audio-patches.sh \
     && grep -n "ADLMIDI_EMU_NUKED_174\\|int musicrate\\|Mix_SetPostMix" src/MusicSrc/MusicDevice.c src/MacSrc/Xmi.c src/MacSrc/SDLSound.c
 
-RUN sed -i 's|set(FLUIDSYNTH_LIBRARIES ${FLUIDSYNTH_LIBRARY})|set(FLUIDSYNTH_LIBRARIES "${FLUIDSYNTH_LIBRARY};pthread;dl")|' CMakeLists.txt \
-    && cmake -DENABLE_FLUIDSYNTH=BUNDLED . \
-    && make -j4
+RUN cmake \
+        -DENABLE_FLUIDSYNTH=BUNDLED \
+        -DCMAKE_EXE_LINKER_FLAGS="-Wl,--allow-shlib-undefined" \
+        . \
+    && make -j4 \
+    && readelf -d systemshock | grep 'NEEDED.*libfluidsynth.so.3'
 
 FROM scratch AS export
 COPY --from=build /root/systemshock/systemshock /sshock.aarch64
