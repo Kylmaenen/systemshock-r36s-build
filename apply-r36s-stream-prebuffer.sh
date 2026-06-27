@@ -10,4 +10,4 @@ perl -0pi -e 's#    cutscene_audiostream = SDL_NewAudioStream\(AUDIO_U8, 1, fix_
 # Raise only FluidSynth master gain; in-game music volume remains user-controlled.
 perl -0pi -e 's#fluid_settings_setnum\(settings, "synth.gain", 0\.5\);#fluid_settings_setnum(settings, "synth.gain", 0.9);#' src/MusicSrc/MusicDevice.c
 
-grep -n "while (cutscene_audiobuffer_size > 0)\|while (audiolog_audiobuffer_size > 0)" src/GameSrc/cutsloop.c src/GameSrc/audiolog.c
+grep -n "prebuffer_blocks = 2\\|prebuffer_blocks-- > 0" src/GameSrc/cutsloop.c src/GameSrc/audiolog.c\ngrep -n "synth.gain.*, 0.9" src/MusicSrc/MusicDevice.c
