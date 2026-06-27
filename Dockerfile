@@ -47,6 +47,10 @@ RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && sh /tmp/apply-r36s-audio-patches.sh \
     && grep -n "ADLMIDI_EMU_NUKED_174\\|int musicrate\\|Mix_SetPostMix" src/MusicSrc/MusicDevice.c src/MacSrc/Xmi.c src/MacSrc/SDLSound.c
 
+# Replace the accumulated SDL sound shims with the R36S backend: FluidSynth
+# remains SDL_mixer's music source, while SFX are mixed lock-free in post-mix.
+COPY r36s-SDLSound.c /root/systemshock/src/MacSrc/SDLSound.c
+
 RUN cmake \
         -DENABLE_FLUIDSYNTH=BUNDLED \
         -DCMAKE_EXE_LINKER_FLAGS="-Wl,--allow-shlib-undefined" \
