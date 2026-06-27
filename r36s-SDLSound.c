@@ -147,27 +147,26 @@ static void ShockMixSamples(Uint8 *stream, int len) {
 }
 
 static void ShockPostMix(void *userdata, unsigned char *stream, int len) {
-    int locked = 0;
+    SDL_AudioStream *as;
 
-    if (stream_mutex == NULL || SDL_TryLockMutex(stream_mutex) == 0) {
-        SDL_AudioStream *as = userdata != NULL ? *(SDL_AudioStream **)userdata : NULL;
-        locked = stream_mutex != NULL;
+    if (stream_mutex != NULL)
+        SDL_LockMutex(stream_mutex);
 
-        if (as != NULL && SDL_AudioStreamAvailable(as) > 0) {
-            Uint8 *mix_stream = SDL_malloc((size_t)len);
-            if (mix_stream != NULL) {
-                int got;
-                SDL_memset(mix_stream, 0, (size_t)len);
-                got = SDL_AudioStreamGet(as, mix_stream, len);
-                if (got > 0)
-                    SDL_MixAudioFormat(stream, mix_stream, AUDIO_S16SYS, (Uint32)got, SDL_MIX_MAXVOLUME);
-                SDL_free(mix_stream);
-            }
+    as = userdata != NULL ? *(SDL_AudioStream **)userdata : NULL;
+    if (as != NULL && SDL_AudioStreamAvailable(as) > 0) {
+        Uint8 *mix_stream = SDL_malloc((size_t)len);
+        if (mix_stream != NULL) {
+            int got;
+            SDL_memset(mix_stream, 0, (size_t)len);
+            got = SDL_AudioStreamGet(as, mix_stream, len);
+            if (got > 0)
+                SDL_MixAudioFormat(stream, mix_stream, AUDIO_S16SYS, (Uint32)got, SDL_MIX_MAXVOLUME);
+            SDL_free(mix_stream);
         }
-
-        if (locked)
-            SDL_UnlockMutex(stream_mutex);
     }
+
+    if (stream_mutex != NULL)
+        SDL_UnlockMutex(stream_mutex);
 
     ShockMixSamples(stream, len);
 }
