@@ -8,6 +8,8 @@ on:
       - "Dockerfile"
       - "sources.list"
       - "apply-r36s-audio-patches.sh"
+      - "apply-r36s-stream-prebuffer.sh"
+      - "r36s-SDLSound.c"
       - "shockolate-*.patch"
 
 permissions:
