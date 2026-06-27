@@ -28,18 +28,18 @@ done
 
 # SDL_mixer owns the callback thread. Serialize all cutscene/audio-log stream
 # access with that callback to avoid use-after-free at the end of a movie.
-perl -0pi -e 's#int snd_using_primary_audio_mix\(void\) \{#void snd_audio_lock(void) { Mix_LockAudio(); }\\nvoid snd_audio_unlock(void) { Mix_UnlockAudio(); }\\n\\nint snd_using_primary_audio_mix(void) {#' src/MacSrc/SDLSound.c
+perl -0pi -e 's#int snd_using_primary_audio_mix\(void\) \{#void snd_audio_lock(void) { Mix_LockAudio(); }\nvoid snd_audio_unlock(void) { Mix_UnlockAudio(); }\n\nint snd_using_primary_audio_mix(void) {#' src/MacSrc/SDLSound.c
 
 for file in src/GameSrc/cutsloop.c src/GameSrc/audiolog.c; do
-    perl -0pi -e 's#extern int snd_output_rate\(void\);#extern int snd_output_rate(void);\\nextern void snd_audio_lock(void);\\nextern void snd_audio_unlock(void);#' "$file"
-    perl -0pi -e 's#SDL_FreeAudioStream\(cutscene_audiostream\);\\n(\s*)cutscene_audiostream = NULL;#snd_audio_lock();\\n$1SDL_FreeAudioStream(cutscene_audiostream);\\n$1cutscene_audiostream = NULL;\\n$1snd_audio_unlock();#g' "$file"
-    perl -0pi -e 's#SDL_AudioStreamPut\(cutscene_audiostream, ([^;]+)\);#snd_audio_lock();\\n      SDL_AudioStreamPut(cutscene_audiostream, $1);\\n      snd_audio_unlock();#g' "$file"
+    perl -0pi -e 's#extern int snd_output_rate\(void\);#extern int snd_output_rate(void);\nextern void snd_audio_lock(void);\nextern void snd_audio_unlock(void);#' "$file"
+    perl -0pi -e 's#SDL_FreeAudioStream\(cutscene_audiostream\);\n(\s*)cutscene_audiostream = NULL;#snd_audio_lock();\n$1SDL_FreeAudioStream(cutscene_audiostream);\n$1cutscene_audiostream = NULL;\n$1snd_audio_unlock();#g' "$file"
+    perl -0pi -e 's#SDL_AudioStreamPut\(cutscene_audiostream, ([^;]+)\);#snd_audio_lock();\n      SDL_AudioStreamPut(cutscene_audiostream, $1);\n      snd_audio_unlock();#g' "$file"
 done
 
 # Full FluidSynth can spread rendering across the RK3326 while leaving one core
 # for the game. Limiting voices bounds callback time without changing samples or
 # interpolation quality; period GM hardware exposed far less polyphony.
-perl -0pi -e 's#fluid_settings_setnum\(settings, "synth.sample-rate", samplerate\);#fluid_settings_setnum(settings, "synth.sample-rate", samplerate);\\n    fluid_settings_setint(settings, "synth.cpu-cores", 3);\\n    fluid_settings_setint(settings, "synth.polyphony", 64);\\n    fluid_settings_setint(settings, "synth.lock-memory", 0);#' src/MusicSrc/MusicDevice.c
+perl -0pi -e 's#fluid_settings_setnum\(settings, "synth.sample-rate", samplerate\);#fluid_settings_setnum(settings, "synth.sample-rate", samplerate);\n    fluid_settings_setint(settings, "synth.cpu-cores", 3);\n    fluid_settings_setint(settings, "synth.polyphony", 64);\n    fluid_settings_setint(settings, "synth.lock-memory", 0);#' src/MusicSrc/MusicDevice.c
 
 perl -0pi -e 's#typedef struct AdlMidiDevice\n\{\n    MusicDevice dev;\n    struct ADL_MIDIPlayer \*adl;\n\} AdlMidiDevice;#typedef struct AdlMidiDevice\n{\n    MusicDevice dev;\n    struct ADL_MIDIPlayer *adl;\n    int modeInitialized;\n    MusicMode currentMode;\n} AdlMidiDevice;#' src/MusicSrc/MusicDevice.c
 
