@@ -23,19 +23,15 @@ WORKDIR /root/systemshock
 COPY shockolate-sdl-renderer-fallback.patch /tmp/shockolate-sdl-renderer-fallback.patch
 COPY shockolate-audio-fallback-v2.patch /tmp/shockolate-audio-fallback-v2.patch
 COPY shockolate-audio-resume-v3.patch /tmp/shockolate-audio-resume-v3.patch
-COPY shockolate-adlmidi-dosbox-v4.patch /tmp/shockolate-adlmidi-dosbox-v4.patch
 COPY apply-r36s-audio-patches.sh /tmp/apply-r36s-audio-patches.sh
-RUN sed -i "/MUSIC_RENDER_FRAMES/{s|#define MUSIC_RENDER_FRAMES 256|enum { MUSIC_RENDER_FRAMES = 256 };|; s|#define MUSIC_FIFO_TARGET_BYTES 8192|enum { MUSIC_FIFO_TARGET_BYTES = 8192 };|;}" /tmp/apply-r36s-audio-patches.sh \
-    && git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
+RUN git apply --check /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply /tmp/shockolate-sdl-renderer-fallback.patch \
     && git apply --check /tmp/shockolate-audio-fallback-v2.patch \
     && git apply /tmp/shockolate-audio-fallback-v2.patch \
     && git apply --check /tmp/shockolate-audio-resume-v3.patch \
     && git apply /tmp/shockolate-audio-resume-v3.patch \
-    && git apply --check /tmp/shockolate-adlmidi-dosbox-v4.patch \
-    && git apply /tmp/shockolate-adlmidi-dosbox-v4.patch \
     && sh /tmp/apply-r36s-audio-patches.sh \
-    && grep -n "SDL_NewAudioStream\\|int musicrate\\|snd_sample_preload" src/MacSrc/Xmi.c src/MacSrc/SDLSound.c
+    && grep -n "ADLMIDI_EMU_NUKED_174\\|int musicrate\\|Mix_SetPostMix" src/MusicSrc/MusicDevice.c src/MacSrc/Xmi.c src/MacSrc/SDLSound.c
 
 RUN cmake . && make -j4
 
